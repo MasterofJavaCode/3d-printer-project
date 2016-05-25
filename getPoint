@@ -1,0 +1,51 @@
+function getPoint(str,xmin,xmax)
+  clc
+  f = inline(str);      % turn input into function of x 
+  z = inline('-1*abs(f(x))');
+  zmax = num2str(abs(f(xmax)));
+  y = inline(['z(x)+' zmax]);
+  
+  %% Range
+  ymax = y(xmin);
+  ymin = y(xmax);
+  range = (ymax - ymin);
+  numLayers = range / 0.42;
+  numLayers = int16(numLayers);
+  printf('numlayers %f\n', numLayers);
+  layer = 0;
+  ycoord = 0.2;
+  filename = [str ".gcode"];
+  fid = fopen(filename,'w+t');
+  inString = {"G21\n","M107\n","M190 s55\n","M104 s196\n","G28\n","G1 z5 F5000\n","M109 s196\n","G90\n","G92 E0\n","M82\n G0 X100 Y100\n"};
+  for i=1:(size(inString))(2)
+    fputs(fid,inString{i});
+  endfor
+  while (layer < numLayers)
+  
+    for n = 0:2
+        xcoord = (fzero(@(x) y(x)-ycoord,[0,100])) - (0.6 * n);
+        layerChange = ['G1 Z' num2str(ycoord) " F900\n" "G1 X" num2str(xcoord+100) " Y" num2str(xcoord+100)  "\nG1 E1.00000 F900.000\n"];
+        fputs(fid, layerChange);
+      if (xcoord < 0.0001)
+        xcoord = 0;
+      endif
+      evalue = ( pi * xcoord); 
+      if (xcoord > 0)
+        outString = ["G01 X" num2str(xcoord+100) " Y" num2str(xcoord+100) "\n"];
+        fputs(fid, outString);
+        outString = ["G02 X" num2str(xcoord+100) " Y" num2str(xcoord+100) " I" num2str(-xcoord) " J" num2str(-xcoord) " E" num2str(18) "\n"]; 
+        fputs(fid, outString);
+      endif
+    endfor
+    layer = layer + 1; 
+    ycoord = 0.42 * layer; 
+    endLayer = ["G1 F900.000 E0\nG92 E0\n"]
+    fputs(fid, endLayer)
+  endwhile
+
+  inStrings = {"M104 S0 \n","G28 X0\n","M84\n"}
+  for i=1:(size(inStrings))(2)
+    fputs(fid,inStrings{i});
+  endfor  
+  
+endfunction
